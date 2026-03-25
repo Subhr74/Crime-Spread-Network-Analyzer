@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CrimeNet Advanced — DAA Crime Spread Analyzer</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════ TOPBAR ══════════════════════════════════════ -->
+<header class="topbar">
+  <a href="#" class="brand">
+    <div class="brand-icon">🚔</div>
+    <div>
+      <div>Crime<span>Net</span></div>
+      <div class="brand-ver">DAA PROJECT v2.0 · ADVANCED</div>
+    </div>
+  </a>
+
+  <div class="ticker">
+    <div class="ticker-inner" id="ticker-text">
+      <span class="ticker-item">SYSTEM ACTIVE — DAA ALGORITHMS LOADED</span>
+      <span class="ticker-item">BFS · DFS · DIJKSTRA · FLOYD-WARSHALL · KRUSKAL MST</span>
+      <span class="ticker-item">LOAD SAMPLE DATASET TO BEGIN ANALYSIS</span>
+      <span class="ticker-item">BETWEENNESS CENTRALITY HOTSPOT DETECTION ENABLED</span>
+      <span class="ticker-item">REAL-TIME GEO CRIME SPREAD SIMULATION READY</span>
+    </div>
+  </div>
+
+  <div class="top-right">
+    <div class="server-badge">
+      <div class="server-dot" id="srv-dot"></div>
+      <span id="srv-lbl">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ BODY ════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- ══ SIDEBAR ════════════════════════════════════════════ -->
+  <aside class="sidebar">
+  <div class="sidebar-scroll">
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi" style="--kpi-c:var(--cyan)"><div class="kpi-val" id="kpi-n">0</div><div class="kpi-lbl">Zones</div></div>
+      <div class="kpi" style="--kpi-c:var(--red)"><div class="kpi-val"  id="kpi-r">0</div><div class="kpi-lbl">Critical</div></div>
+      <div class="kpi" style="--kpi-c:var(--green)"><div class="kpi-val" id="kpi-e">0</div><div class="kpi-lbl">Edges</div></div>
+    </div>
+
+    <!-- Quick Load -->
+    <div class="panel">
+      <div class="panel-head" onclick="togglePanel(this)">
+        <div class="panel-title">Quick Load</div>
+        <span class="panel-toggle">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="btn-group" style="margin-bottom:8px">
+          <button class="btn btn-ghost btn-sm" onclick="loadSample('delhi')">🏙 Delhi</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadSample('mumbai')">🌆 Mumbai</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadSample('mini')">🗺 Mini</button>
+        </div>
+        <div class="fg">
+          <label class="form-label">Source Node (Police HQ)</label>
+          <select id="src-sel"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zones -->
+    <div class="panel">
+      <div class="panel-head" onclick="togglePanel(this)">
+        <div class="panel-title">Crime Zones</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();addZone()">+ Zone</button>
+          <span class="panel-toggle">▼</span>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:8px">
+        <div style="display:grid;grid-template-columns:1fr 60px 55px 55px 24px;gap:4px;margin-bottom:6px">
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4);letter-spacing:.1em;text-transform:uppercase">NAME</span>
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4);letter-spacing:.1em;text-transform:uppercase">LAT</span>
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4);letter-spacing:.1em;text-transform:uppercase">LNG</span>
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4);letter-spacing:.1em;text-transform:uppercase">LVL</span>
+          <span></span>
+        </div>
+        <div id="zones-list"></div>
+      </div>
+    </div>
+
+    <!-- Edges -->
+    <div class="panel">
+      <div class="panel-head" onclick="togglePanel(this)">
+        <div class="panel-title">Connections</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();addEdge()">+ Edge</button>
+          <span class="panel-toggle">▼</span>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 50px 24px;gap:4px;margin-bottom:6px">
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4)">FROM</span>
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4)">TO</span>
+          <span style="font-family:var(--font-m);font-size:8px;color:var(--t4)">WT</span>
+          <span></span>
+        </div>
+        <div id="edges-list"></div>
+      </div>
+    </div>
+
+    <!-- Algorithms -->
+    <div class="panel">
+      <div class="panel-head" onclick="togglePanel(this)">
+        <div class="panel-title">DAA Algorithms</div>
+        <span class="panel-toggle">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="algo-grid">
+          <div class="algo-card" id="ac-bfs" style="--algo-c:var(--green)" onclick="runSingle('bfs')">
+            <span class="algo-icon">🌊</span>
+            <div class="algo-name">BFS</div>
+            <div class="algo-complexity">O(V+E)</div>
+          </div>
+          <div class="algo-card" id="ac-dfs" style="--algo-c:var(--purple)" onclick="runSingle('dfs')">
+            <span class="algo-icon">🔍</span>
+            <div class="algo-name">DFS</div>
+            <div class="algo-complexity">O(V+E)</div>
+          </div>
+          <div class="algo-card" id="ac-dijk" style="--algo-c:var(--cyan)" onclick="runSingle('dijkstra')">
+            <span class="algo-icon">🚓</span>
+            <div class="algo-name">Dijkstra</div>
+            <div class="algo-complexity">O(V²)</div>
+          </div>
+          <div class="algo-card" id="ac-fw" style="--algo-c:var(--orange)" onclick="runSingle('floyd')">
+            <span class="algo-icon">📡</span>
+            <div class="algo-name">Floyd-W</div>
+            <div class="algo-complexity">O(V³)</div>
+          </div>
+          <div class="algo-card" id="ac-mst" style="--algo-c:var(--amber);grid-column:span 2" onclick="runSingle('mst')">
+            <span class="algo-icon">🗺</span>
+            <div class="algo-name">Kruskal MST</div>
+            <div class="algo-complexity">O(E log E)</div>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-full" id="run-all-btn" onclick="runAll()">
+          <span>⚡</span> Run Full Analysis
+        </button>
+
+        <!-- BFS quick result -->
+        <div id="bfs-quick" style="display:none;margin-top:10px">
+          <div class="form-label" style="margin-bottom:5px">BFS Spread Order</div>
+          <div class="chip-flow" id="bfs-chips"></div>
+        </div>
+        <!-- DFS quick result -->
+        <div id="dfs-quick" style="display:none;margin-top:8px">
+          <div class="form-label" style="margin-bottom:5px">DFS Reach Order</div>
+          <div class="chip-flow" id="dfs-chips"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar-scroll -->
+  </aside>
+
+  <!-- ══ MAP + VIEWS ════════════════════════════════════════ -->
+  <div class="map-area">
+
+    <!-- MAP -->
+    <div id="map" style="height:55vh;min-height:320px"></div>
+
+    <!-- HUD: top-left (algo info) -->
+    <div class="hud hud-tl">
+      <div class="algo-info" id="algo-info" style="display:none">
+        <div class="algo-info-name" id="ai-name">—</div>
+        <div class="algo-info-line" id="ai-line1"></div>
+        <div class="algo-info-line" id="ai-line2"></div>
+        <div class="algo-info-line" id="ai-line3"></div>
+      </div>
+    </div>
+
+    <!-- HUD: top-right (legend + controls) -->
+    <div class="hud hud-tr">
+      <div class="hud-card" style="min-width:200px">
+        <div class="hud-card-title">Crime Intensity</div>
+        <div class="heatbar-wrap"><div class="heatbar"></div>
+        <div class="heatbar-labels"><span>0 Safe</span><span>10 Critical</span></div></div>
+        <div style="margin-top:8px">
+          <div class="legend-row"><div class="legend-swatch" style="background:#1edb8a"></div>Low (0–3)</div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#f0b429"></div>Medium (4–6)</div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#ff7e2e"></div>High (7–8)</div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#ff2442"></div>Critical (9–10)</div>
+        </div>
+      </div>
+      <div class="map-controls">
+        <button class="mc-btn" id="mc-bfs" onclick="mapMode('bfs',this)" title="Show BFS spread">🌊 BFS</button>
+        <button class="mc-btn" id="mc-dijk" onclick="mapMode('dijkstra',this)" title="Show Dijkstra paths">🚓 Paths</button>
+        <button class="mc-btn" id="mc-mst" onclick="mapMode('mst',this)" title="Show MST edges">🗺 MST</button>
+        <button class="mc-btn" id="mc-heat" onclick="mapMode('heat',this)" title="Crime heatmap">🔥 Heat</button>
+        <button class="mc-btn" onclick="clearAlgoLayers()" title="Clear overlays">✕</button>
+      </div>
+    </div>
+
+    <!-- HUD: bottom-right (algo legend) -->
+    <div class="hud hud-br">
+      <div class="hud-card" id="algo-map-legend" style="display:none;max-width:190px">
+        <div class="hud-card-title" id="aml-title"></div>
+        <div id="aml-body"></div>
+      </div>
+    </div>
+
+    <!-- View Tabs -->
+    <div class="view-tabs">
+      <button class="view-tab active" onclick="switchPane('spread',this)">🌊 Spread</button>
+      <button class="view-tab" onclick="switchPane('paths',this)">🚓 Paths</button>
+      <button class="view-tab" onclick="switchPane('matrix',this)">📡 Matrix</button>
+      <button class="view-tab" onclick="switchPane('mst',this)">🗺 MST</button>
+      <button class="view-tab" onclick="switchPane('hotspots',this)">🔥 Hotspots</button>
+      <button class="view-tab" onclick="switchPane('charts',this)">📊 Charts</button>
+      <button class="view-tab" onclick="switchPane('simulate',this)">▶ Simulate</button>
+    </div>
+
+    <div class="view-panels">
+
+      <!-- SPREAD -->
+      <div class="view-pane active" id="pane-spread">
+        <div class="sec-title">Crime <em>Spread</em> Analysis</div>
+        <div class="sec-sub">BFS WAVE PROPAGATION · DFS DEEP REACHABILITY · SOURCE → ZONES</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <div class="chart-title">BFS — Level-by-Level Wave (O(V+E))</div>
+            <div class="wave-grid" id="bfs-wave"></div>
+          </div>
+          <div>
+            <div class="chart-title">DFS — Deep Penetration (O(V+E))</div>
+            <div id="dfs-tree"></div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <div class="chart-title">BFS Distance Table</div>
+          <div class="tbl-wrap">
+            <table><thead><tr><th>#</th><th>Zone</th><th>BFS Hops</th><th>Crime Lvl</th><th>Risk</th><th>Reachable</th></tr></thead>
+            <tbody id="bfs-tbl"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PATHS -->
+      <div class="view-pane" id="pane-paths">
+        <div class="sec-title">Police <em>Shortest</em> Paths</div>
+        <div class="sec-sub">DIJKSTRA ALGORITHM · MINIMUM COST ROUTE FROM HQ · O(V²)</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+          <label class="form-label" style="white-space:nowrap;margin:0">Find police route to:</label>
+          <select id="dest-sel" style="flex:1"></select>
+          <button class="btn btn-primary btn-sm" onclick="showPath()">Trace Route</button>
+        </div>
+        <div id="path-display"></div>
+        <div class="chart-title" style="margin-bottom:8px">All Distances from HQ</div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>#</th><th>Zone</th><th>Distance</th><th>Via</th><th>Path</th><th>Crime</th></tr></thead>
+          <tbody id="dijk-tbl"></tbody></table>
+        </div>
+      </div>
+
+      <!-- MATRIX -->
+      <div class="view-pane" id="pane-matrix">
+        <div class="sec-title">All-Pairs <em>Distance</em> Matrix</div>
+        <div class="sec-sub">FLOYD-WARSHALL · EVERY ZONE ↔ EVERY ZONE · O(V³) · FIRST 10 NODES SHOWN</div>
+        <div style="margin-bottom:12px;font-family:var(--font-m);font-size:11px;color:var(--t3)">
+          Color coding: <span style="color:var(--cyan)">■ zero</span>  <span style="color:var(--green)">■ near</span>  <span style="color:var(--amber)">■ mid</span>  <span style="color:var(--orange)">■ far</span>  <span style="color:var(--red)">■ very far</span>  <span style="color:var(--t4)">■ unreachable</span>
+        </div>
+        <div class="fw-wrap"><table class="fw-table" id="fw-tbl"></table></div>
+      </div>
+
+      <!-- MST -->
+      <div class="view-pane" id="pane-mst">
+        <div class="sec-title">Minimum <em>Patrol</em> Network</div>
+        <div class="sec-sub">KRUSKAL'S MST · OPTIMAL POLICE COVERAGE · O(E LOG E)</div>
+        <div class="mst-stats">
+          <div class="mst-stat"><div class="mst-stat-val td-amber" id="mst-total">–</div><div class="mst-stat-lbl">MST Weight</div></div>
+          <div class="mst-stat"><div class="mst-stat-val td-green" id="mst-ecnt">–</div><div class="mst-stat-lbl">MST Edges</div></div>
+          <div class="mst-stat"><div class="mst-stat-val" style="color:var(--purple)" id="mst-save">–</div><div class="mst-stat-lbl">Cost Saved</div></div>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>From</th><th>Zone A</th><th>To</th><th>Zone B</th><th>Weight</th><th>In MST</th></tr></thead>
+          <tbody id="mst-tbl"></tbody></table>
+        </div>
+      </div>
+
+      <!-- HOTSPOTS -->
+      <div class="view-pane" id="pane-hotspots">
+        <div class="sec-title">Crime <em>Hotspot</em> Intelligence</div>
+        <div class="sec-sub">BETWEENNESS CENTRALITY + CRIME LEVEL + DEGREE — HIGH-RISK ZONE DETECTION</div>
+        <div class="hotspot-grid" id="hotspot-grid"></div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="view-pane" id="pane-charts">
+        <div class="sec-title">Analytics <em>Dashboard</em></div>
+        <div class="sec-sub">CRIME LEVEL DISTRIBUTION · NODE DEGREE · BETWEENNESS CENTRALITY</div>
+        <div class="chart-grid">
+          <div class="chart-card"><div class="chart-title">Crime Level by Zone</div><canvas id="ch-crime" height="180"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Node Degree (Connectivity)</div><canvas id="ch-degree" height="180"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Betweenness Centrality</div><canvas id="ch-btw" height="180"></canvas></div>
+          <div class="chart-card"><div class="chart-title">Dijkstra Distances from HQ</div><canvas id="ch-dist" height="180"></canvas></div>
+        </div>
+      </div>
+
+      <!-- SIMULATE -->
+      <div class="view-pane" id="pane-simulate">
+        <div class="sec-title">Crime Spread <em>Simulation</em></div>
+        <div class="sec-sub">STEP THROUGH BFS WAVE PROPAGATION — WATCH CRIME SPREAD HOP BY HOP</div>
+        <div class="sim-controls">
+          <label>Step:</label>
+          <input type="range" id="sim-slider" min="0" max="10" value="0" oninput="simStep(this.value)">
+          <span id="sim-step-lbl">0</span>
+          <button class="btn btn-primary btn-sm" onclick="simPlay()">▶ Play</button>
+          <button class="btn btn-ghost btn-sm" onclick="simReset()">↺ Reset</button>
+          <label>Speed:</label>
+          <select id="sim-speed" style="width:80px">
+            <option value="800">Slow</option>
+            <option value="400" selected>Normal</option>
+            <option value="150">Fast</option>
+          </select>
+        </div>
+        <div id="sim-display"></div>
+        <div id="sim-map-note" style="margin-top:10px;font-family:var(--font-m);font-size:10px;color:var(--t4)">Watch the geo map for animated spread visualization</div>
+      </div>
+
+    </div><!-- /view-panels -->
+  </div><!-- /map-area -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script src="app.js"></script>
+</body>
+</html>
