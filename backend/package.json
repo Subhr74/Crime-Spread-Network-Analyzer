@@ -1,7 +1,7 @@
 {
-  "name": "crimenet-advanced-backend",
-  "version": "2.0.0",
-  "description": "CrimeNet Advanced — DAA Crime Spread Analyzer Backend",
+  "name": "crimenet-india-backend",
+  "version": "3.0.0",
+  "description": "CrimeNet India — NCRB 2023 DAA Crime Spread Analyzer",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "dependencies": { "cors": "^2.8.5", "express": "^4.18.2" }
